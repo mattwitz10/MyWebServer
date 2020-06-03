@@ -1,12 +1,15 @@
 ﻿using System;
 
+using MyWebServer.BasicWebServer;
+
 namespace MyWebServer
 {
     class Program
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            Server.Start();
+            Console.ReadLine();
         }
     }
 }
