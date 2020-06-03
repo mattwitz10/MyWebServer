@@ -8,7 +8,8 @@ namespace MyWebServer
     {
         static void Main(string[] args)
         {
-            Server.Start();
+            Server local = new Server();
+            local.Start();
             Console.ReadLine();
         }
     }
