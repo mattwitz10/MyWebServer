@@ -11,20 +11,25 @@ using System.Threading.Tasks;
 
 namespace MyWebServer.BasicWebServer
 {
-    public static class Server
+    public class Server
     {
-        private static HttpListener listener;
+        public static int maxSimultaneousConnections { get; set; }
+        protected static Semaphore sem;
 
-        private static List<IPAddress> GetLocalHostIPs()
+        public Server()
         {
-            IPHostEntry host;
-            host = Dns.GetHostEntry(Dns.GetHostName());
-            List<IPAddress> list = host.AddressList.Where(ip => ip.AddressFamily == AddressFamily.InterNetwork).ToList();
-
-            return list;
+            maxSimultaneousConnections = 20;
+            sem = new Semaphore(maxSimultaneousConnections, maxSimultaneousConnections);
         }
 
-        private static HttpListener InitializeListener(List<IPAddress> localhostIPs)
+        public void Start()
+        {
+            List<IPAddress> localhostIPs = GetLocalHostIPs();
+            HttpListener listener = InitializeListener(localhostIPs);
+            Start(listener);
+        }
+
+        private HttpListener InitializeListener(List<IPAddress> localhostIPs)
         {
             HttpListener listener = new HttpListener();
             listener.Prefixes.Add("http://localhost/");
@@ -37,16 +42,13 @@ namespace MyWebServer.BasicWebServer
             return listener;
         }
 
-        public static int maxSimultaneousConnections = 20;
-        private static Semaphore sem = new Semaphore(maxSimultaneousConnections, maxSimultaneousConnections);
-
-        private static void Start(HttpListener listener)
+        private void Start(HttpListener listener)
         {
             listener.Start();
             Task.Run(() => RunServer(listener));
         }
 
-        public static void RunServer(HttpListener listener)
+        public void RunServer(HttpListener listener)
         {
             while (true)
             {
@@ -55,11 +57,13 @@ namespace MyWebServer.BasicWebServer
             }
         }
 
-        private static async void StartConnectionListener(HttpListener listener)
+        private async void StartConnectionListener(HttpListener listener)
         {
             HttpListenerContext context = await listener.GetContextAsync();
 
             sem.Release();
+
+            Log(context.Request);
 
             string response = "Hello World!";
             byte[] encoded = Encoding.UTF8.GetBytes(response);
@@ -68,11 +72,18 @@ namespace MyWebServer.BasicWebServer
             context.Response.OutputStream.Close();
         }
 
-        public static void Start()
+        private List<IPAddress> GetLocalHostIPs()
         {
-            List<IPAddress> localhostIPs = GetLocalHostIPs();
-            HttpListener listener = InitializeListener(localhostIPs);
-            Start(listener);
+            IPHostEntry host;
+            host = Dns.GetHostEntry(Dns.GetHostName());
+            List<IPAddress> list = host.AddressList.Where(ip => ip.AddressFamily == AddressFamily.InterNetwork).ToList();
+
+            return list;
+        }
+
+        public void Log(HttpListenerRequest request)
+        {
+            Console.WriteLine(request.RemoteEndPoint + " " + request.HttpMethod + " /" + request.Url.AbsoluteUri);
         }
     }
 }
